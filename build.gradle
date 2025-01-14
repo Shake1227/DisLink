@@ -1,0 +1,64 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1' // Shadow プラグイン
+}
+
+group = 'shake_1227.dislink' // プラグインのパッケージ
+version = '1.0'
+description = 'A Discord link plugin for Minecraft servers'
+java.sourceCompatibility = JavaVersion.VERSION_17 // Java 17 に設定
+
+repositories {
+    mavenCentral() // 依存関係の Maven リポジトリ
+    maven { url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/' } // Spigot API
+    maven { url = 'https://m2.dv8tion.net/releases' } // JDA の Maven リポジトリ
+}
+
+dependencies {
+    // Spigot API
+    compileOnly 'org.spigotmc:spigot-api:1.20.1-R0.1-SNAPSHOT'
+
+    // JDA (Discord API)
+    implementation 'net.dv8tion:JDA:5.0.0-beta.14'
+
+    // 必要なライブラリ (okhttp3, okio)
+    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
+    implementation 'com.squareup.okio:okio:3.5.0'
+
+    // アノテーションプロセッサ (必要であれば)
+    compileOnly 'org.jetbrains:annotations:24.0.1'
+
+    // テスト用 (必要に応じて)
+    testImplementation 'junit:junit:4.13.2'
+}
+
+tasks {
+    // 通常のビルドタスク
+    build {
+        dependsOn shadowJar
+    }
+
+    // Shadow JAR の設定
+    shadowJar {
+        archiveClassifier.set('') // JAR ファイルの名前をデフォルトに
+        archiveFileName.set("DisLink-${version}.jar") // ファイル名を設定
+        mergeServiceFiles() // サービスファイルをマージしてエラーを防ぐ
+
+        // 名前空間のリロケーション (Shade)
+        relocate 'net.dv8tion', 'shake_1227.shaded.net.dv8tion' // JDA をリロケート
+        relocate 'okhttp3', 'shake_1227.shaded.okhttp3'        // okhttp3 をリロケート
+        relocate 'okio', 'shake_1227.shaded.okio'              // okio をリロケート
+    }
+}
+
+// Java のバージョン互換性チェック
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17)) // Java 17 を指定
+    }
+}
+
+// ビルドキャッシュを無効化 (必要であれば削除)
+configurations.all {
+    resolutionStrategy.cacheChangingModulesFor(0, 'seconds')
+}

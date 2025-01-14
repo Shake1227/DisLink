@@ -1,0 +1,17 @@
+name: DisLink
+version: 1.0.0
+main: shake_1227.dislink.DisLink
+api-version: 1.20
+author: Shake1227
+description: MinecraftとDiscordを連携させるプラグイン
+commands:
+  bypass:
+    description: 認証不要プレイヤーの管理
+    usage: /bypass <add/remove> <player>
+  reauth:
+    description: 再認証を要求する
+    usage: /reauth <player>
+permissions:
+  dislink.admin:
+    description: 管理者用コマンドを実行する権限
+    default: op
