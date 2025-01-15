@@ -20,8 +20,17 @@ public class DisLink extends JavaPlugin {
 
     private JDA jda;
     private FileConfiguration config;
+
+    // 認証コードの保留リスト (認証待ち)
     private final Map<UUID, String> pendingCodes = new HashMap<>();
+
+    // 認証不要ユーザーのリスト (認証が不要なプレイヤー)
     private final Map<UUID, Boolean> bypassedPlayers = new HashMap<>();
+
+    // 認証済みユーザーのリスト (認証を完了したプレイヤー)
+    private final Map<UUID, Boolean> authenticatedPlayers = new HashMap<>();
+
+    // DiscordアカウントとMinecraft UUIDのマッピング
     private final Map<String, UUID> discordToMinecraftMap = new HashMap<>();
 
     public static final String PREFIX = ChatColor.GRAY + "[" + ChatColor.LIGHT_PURPLE + "Dis" + ChatColor.YELLOW + "Link" + ChatColor.GRAY + "] ";
@@ -96,7 +105,67 @@ public class DisLink extends JavaPlugin {
         return bypassedPlayers;
     }
 
+    public Map<UUID, Boolean> getAuthenticatedPlayers() {
+        return authenticatedPlayers;
+    }
+
     public Map<String, UUID> getDiscordToMinecraftMap() {
         return discordToMinecraftMap;
+    }
+
+    /**
+     * プレイヤーが認証済みかどうかを確認
+     *
+     * @param uuid プレイヤーのUUID
+     * @return 認証済みの場合はtrue、そうでない場合はfalse
+     */
+    public boolean isAuthenticated(UUID uuid) {
+        return authenticatedPlayers.containsKey(uuid) && authenticatedPlayers.get(uuid);
+    }
+
+    /**
+     * プレイヤーが認証不要ユーザーかどうかを確認
+     *
+     * @param uuid プレイヤーのUUID
+     * @return 認証不要ユーザーの場合はtrue、そうでない場合はfalse
+     */
+    public boolean isBypassed(UUID uuid) {
+        return bypassedPlayers.containsKey(uuid) && bypassedPlayers.get(uuid);
+    }
+
+    /**
+     * プレイヤーを認証済みリストに追加
+     *
+     * @param uuid プレイヤーのUUID
+     */
+    public void addAuthenticatedPlayer(UUID uuid) {
+        authenticatedPlayers.put(uuid, true);
+    }
+
+    /**
+     * プレイヤーを認証不要リストに追加
+     *
+     * @param uuid プレイヤーのUUID
+     */
+    public void addBypassedPlayer(UUID uuid) {
+        bypassedPlayers.put(uuid, true);
+    }
+
+    /**
+     * プレイヤーを認証済みリストから削除
+     *
+     * @param uuid プレイヤーのUUID
+     */
+    public void removeAuthenticatedPlayer(UUID uuid) {
+        authenticatedPlayers.remove(uuid);
+    }
+
+    /**
+     * プレイヤーを認証不要リストから削除
+     *
+     * @param uuid プレイヤーのUUID
+     */
+    public void removeBypassedPlayer(UUID uuid) {
+        bypassedPlayers.remove(uuid);
     }
 }

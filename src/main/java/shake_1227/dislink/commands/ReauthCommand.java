@@ -2,6 +2,7 @@ package shake_1227.dislink.commands;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -31,10 +32,10 @@ public class ReauthCommand implements CommandExecutor {
         }
 
         String playerName = args[0];
-        Player targetPlayer = Bukkit.getPlayer(playerName);
+        OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(playerName);
 
-        if (targetPlayer == null) {
-            sender.sendMessage(DisLink.PREFIX + ChatColor.RED + "指定したプレイヤーがオンラインではありません。");
+        if (!targetPlayer.hasPlayedBefore() && !targetPlayer.isOnline()) {
+            sender.sendMessage(DisLink.PREFIX + ChatColor.RED + "指定したプレイヤーは存在しません。");
             return true;
         }
 
@@ -42,7 +43,14 @@ public class ReauthCommand implements CommandExecutor {
 
         if (plugin.getBypassedPlayers().remove(uuid)) {
             plugin.getPendingCodes().remove(uuid);
-            targetPlayer.kickPlayer(DisLink.PREFIX + ChatColor.RED + "再認証が要求されました。");
+
+            if (targetPlayer.isOnline()) {
+                Player onlinePlayer = targetPlayer.getPlayer();
+                if (onlinePlayer != null) {
+                    onlinePlayer.kickPlayer(DisLink.PREFIX + ChatColor.RED + "再認証が要求されました。");
+                }
+            }
+
             sender.sendMessage(DisLink.PREFIX + ChatColor.GREEN + "プレイヤー " + playerName + " の認証を解除しました。");
         } else {
             sender.sendMessage(DisLink.PREFIX + ChatColor.RED + "プレイヤー " + playerName + " は認証されていません。");

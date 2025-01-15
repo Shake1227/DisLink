@@ -1,10 +1,14 @@
 package shake_1227.dislink;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -22,10 +26,49 @@ public class PlayerJoinListener implements Listener {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
 
-        // プレイヤーが認証不要リストにいる場合
+        // 認証不要ユーザーの場合はそのまま参加を許可
         if (plugin.getBypassedPlayers().getOrDefault(uuid, false)) {
             player.sendMessage(DisLink.PREFIX + ChatColor.GREEN + "認証不要プレイヤーとしてサーバーに参加しました！");
             return;
+        }
+
+        // 認証済みユーザーの場合はそのまま参加を許可
+        if (plugin.isAuthenticated(uuid)) {
+            player.sendMessage(DisLink.PREFIX + ChatColor.GREEN + "認証済みプレイヤーとしてサーバーに参加しました！");
+            return;
+        }
+
+        // item-enableがtrueの場合、OPプレイヤーにアイテムを付与
+        if (plugin.getPluginConfig().getBoolean("item-enable", false)) {
+            if (player.isOp()) {
+                // DisLinker アイテムを作成
+                ItemStack disLinker = new ItemStack(Material.STICK);
+                ItemMeta meta = disLinker.getItemMeta();
+
+                if (meta != null) {
+                    meta.setDisplayName(ChatColor.YELLOW + "DisLinker");
+                    meta.setCustomModelData(1); // カスタムモデルデータを設定
+                    disLinker.setItemMeta(meta);
+                }
+
+                // アイテムを付与
+                player.getInventory().addItem(disLinker);
+                player.sendMessage(DisLink.PREFIX + ChatColor.GOLD + "OPプレイヤーとしてDisLinkerを受け取りました！");
+            }
+
+            // リソースパックの適用
+            String resourcePackUrl = plugin.getPluginConfig().getString("resourcepack-url");
+            if (resourcePackUrl != null && !resourcePackUrl.isEmpty()) {
+                // 5秒後にリソースパックを適用
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    if (player.isOnline()) {
+                        player.setResourcePack(resourcePackUrl);
+                        player.sendMessage(DisLink.PREFIX + ChatColor.AQUA + "リソースパックが適用されました！");
+                    }
+                }, 100L); // 100L = 5秒 (1秒 = 20 ticks)
+            } else {
+                plugin.getLogger().warning(DisLink.PREFIX + "リソースパックURLが設定されていません！ config.yml を確認してください。");
+            }
         }
 
         // ランダムな認証コードを生成
