@@ -3,10 +3,12 @@ package shake_1227.dislink.gui;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import shake_1227.dislink.DisLink;
 
@@ -26,43 +28,56 @@ public class DisLinkGUI {
     public static Inventory getMainGUI(Player player) {
         Inventory gui = Bukkit.createInventory(null, 27, ChatColor.LIGHT_PURPLE + "DisLink メニュー");
 
-        // 認証不要プレイヤー管理
-        gui.setItem(11, createItem(Material.PLAYER_HEAD, ChatColor.YELLOW + "認証不要プレイヤーを管理", "プレイヤーのリストを表示します。"));
-
-        // 認証解除
-        gui.setItem(13, createItem(Material.BARRIER, ChatColor.RED + "認証解除", "認証解除するプレイヤーのリストを表示します。"));
-
-        // 認証不要リスト
-        gui.setItem(15, createItem(Material.BOOK, ChatColor.AQUA + "認証不要リスト", "現在の認証不要リストを表示します。"));
+        // ボタンを追加
+        gui.setItem(11, createItem(Material.PLAYER_HEAD, ChatColor.YELLOW + "認証不要ユーザー管理", "クリックして認証不要ユーザーを管理"));
+        gui.setItem(13, createItem(Material.BARRIER, ChatColor.RED + "認証済みプレイヤー管理", "クリックして認証済みユーザーを管理"));
+        gui.setItem(15, createItem(Material.BOOK, ChatColor.AQUA + "認証済みプレイヤー一覧", "クリックしてチャットに一覧を表示"));
 
         return gui;
     }
 
-    // サブGUI: 認証不要プレイヤー追加用
-    public static Inventory getBypassPlayerGUI(Player player) {
-        Inventory gui = Bukkit.createInventory(null, 54, ChatColor.YELLOW + "認証不要プレイヤーを追加");
+    // 認証不要プレイヤー管理GUI
+    public static Inventory getBypassPlayerGUI(Player player, int page) {
+        List<OfflinePlayer> allPlayers = List.of(Bukkit.getOfflinePlayers());
+        int totalPages = (int) Math.ceil(allPlayers.size() / 45.0); // ページ数を計算
 
-        int slot = 0;
-        for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
-            gui.setItem(slot, createPlayerHead(onlinePlayer, ChatColor.GREEN + onlinePlayer.getName()));
-            slot++;
+        Inventory gui = Bukkit.createInventory(null, 54, ChatColor.YELLOW + "認証不要ユーザー管理: " + page + "/" + totalPages);
+
+        int startIndex = (page - 1) * 45; // ページの開始インデックス
+        int endIndex = Math.min(startIndex + 45, allPlayers.size()); // ページの終了インデックス
+
+        for (int i = startIndex; i < endIndex; i++) {
+            OfflinePlayer offlinePlayer = allPlayers.get(i);
+            boolean isBypassed = plugin.isBypassed(offlinePlayer.getUniqueId());
+            gui.addItem(createPlayerHead(offlinePlayer, isBypassed ? ChatColor.GREEN + offlinePlayer.getName() : ChatColor.RED + offlinePlayer.getName()));
         }
+
+        // ページコントロール
+        if (page > 1) gui.setItem(45, createItem(Material.ARROW, ChatColor.YELLOW + "前のページ"));
+        if (page < totalPages) gui.setItem(53, createItem(Material.ARROW, ChatColor.YELLOW + "次のページ"));
 
         return gui;
     }
 
-    // サブGUI: 認証解除用
-    public static Inventory getReauthPlayerGUI(Player player) {
-        Inventory gui = Bukkit.createInventory(null, 54, ChatColor.RED + "認証解除するプレイヤー");
+    // 認証済みプレイヤー管理GUI
+    public static Inventory getReauthPlayerGUI(Player player, int page) {
+        List<UUID> authenticatedPlayers = new ArrayList<>(plugin.getAuthenticatedPlayers().keySet());
+        int totalPages = (int) Math.ceil(authenticatedPlayers.size() / 45.0);
 
-        int slot = 0;
-        for (UUID uuid : plugin.getPendingCodes().keySet()) {
-            Player pendingPlayer = Bukkit.getPlayer(uuid);
-            if (pendingPlayer != null) {
-                gui.setItem(slot, createPlayerHead(pendingPlayer, ChatColor.YELLOW + pendingPlayer.getName()));
-                slot++;
-            }
+        Inventory gui = Bukkit.createInventory(null, 54, ChatColor.RED + "認証済みユーザー管理: " + page + "/" + totalPages);
+
+        int startIndex = (page - 1) * 45;
+        int endIndex = Math.min(startIndex + 45, authenticatedPlayers.size());
+
+        for (int i = startIndex; i < endIndex; i++) {
+            UUID uuid = authenticatedPlayers.get(i);
+            OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(uuid);
+            String discordId = plugin.getAuthenticatedDiscordId(uuid);
+            gui.addItem(createPlayerHead(offlinePlayer, ChatColor.YELLOW + offlinePlayer.getName(), ChatColor.GRAY + "Discord ID: " + discordId));
         }
+
+        if (page > 1) gui.setItem(45, createItem(Material.ARROW, ChatColor.YELLOW + "前のページ"));
+        if (page < totalPages) gui.setItem(53, createItem(Material.ARROW, ChatColor.YELLOW + "次のページ"));
 
         return gui;
     }
@@ -71,38 +86,110 @@ public class DisLinkGUI {
     private static ItemStack createItem(Material material, String name, String... lore) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(name);
-
-        List<String> loreList = new ArrayList<>();
-        for (String line : lore) {
-            loreList.add(ChatColor.translateAlternateColorCodes('&', line));
+        if (meta != null) {
+            meta.setDisplayName(name);
+            List<String> loreList = new ArrayList<>();
+            for (String line : lore) {
+                loreList.add(ChatColor.translateAlternateColorCodes('&', line));
+            }
+            meta.setLore(loreList);
+            item.setItemMeta(meta);
         }
-        meta.setLore(loreList);
-
-        item.setItemMeta(meta);
         return item;
     }
 
     // プレイヤーヘッド作成用
-    private static ItemStack createPlayerHead(Player player, String displayName) {
+    private static ItemStack createPlayerHead(OfflinePlayer player, String displayName, String... lore) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
-        ItemMeta meta = head.getItemMeta();
-        meta.setDisplayName(displayName);
-        head.setItemMeta(meta);
+        SkullMeta meta = (SkullMeta) head.getItemMeta();
+        if (meta != null) {
+            meta.setOwningPlayer(player);
+            meta.setDisplayName(displayName);
+            List<String> loreList = new ArrayList<>();
+            for (String line : lore) {
+                loreList.add(ChatColor.translateAlternateColorCodes('&', line));
+            }
+            meta.setLore(loreList);
+            head.setItemMeta(meta);
+        }
         return head;
     }
 
     // GUIクリックイベント
-    public static void handleGUIClick(InventoryClickEvent event, Player player) {
-        if (event.getCurrentItem() == null || !event.getView().getTitle().contains("DisLinker")) return;
+    public static void handleGUIClick(InventoryClickEvent event) {
+        if (event.getCurrentItem() == null || event.getCurrentItem().getItemMeta() == null) return;
 
-        event.setCancelled(true);
+        Player player = (Player) event.getWhoClicked();
         String title = event.getView().getTitle();
 
-        if (title.contains("認証不要プレイヤーを管理")) {
-            player.openInventory(getBypassPlayerGUI(player));
-        } else if (title.contains("認証解除するプレイヤー")) {
-            player.openInventory(getReauthPlayerGUI(player));
+        event.setCancelled(true); // アイテムの持ち運びを防止
+
+        // メインメニュー処理
+        if (title.equals(ChatColor.LIGHT_PURPLE + "DisLink メニュー")) {
+            switch (event.getCurrentItem().getType()) {
+                case PLAYER_HEAD:
+                    player.openInventory(getBypassPlayerGUI(player, 1));
+                    break;
+
+                case BARRIER:
+                    player.openInventory(getReauthPlayerGUI(player, 1));
+                    break;
+
+                case BOOK:
+                    player.sendMessage(DisLink.PREFIX + ChatColor.GREEN + "認証済みプレイヤー一覧:");
+                    for (UUID uuid : plugin.getAuthenticatedPlayers().keySet()) {
+                        String name = Bukkit.getOfflinePlayer(uuid).getName();
+                        String discordId = plugin.getAuthenticatedDiscordId(uuid);
+                        player.sendMessage(DisLink.PREFIX + ChatColor.YELLOW + "- " + name + ChatColor.GRAY + " (Discord ID: " + discordId + ")");
+                    }
+                    break;
+
+                default:
+                    break;
+            }
         }
+
+        // 認証不要プレイヤー管理
+        if (title.contains("認証不要ユーザー管理")) {
+            handleBypassPlayerClick(event, player);
+        }
+
+        // 認証済みプレイヤー管理
+        if (title.contains("認証済みユーザー管理")) {
+            handleReauthPlayerClick(event, player);
+        }
+    }
+
+    // 認証不要プレイヤークリック処理
+    public static void handleBypassPlayerClick(InventoryClickEvent event, Player player) {
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() != Material.PLAYER_HEAD) return;
+
+        String playerName = ChatColor.stripColor(clicked.getItemMeta().getDisplayName());
+        OfflinePlayer target = Bukkit.getOfflinePlayer(playerName);
+
+        if (plugin.isBypassed(target.getUniqueId())) {
+            plugin.removeBypassedPlayer(target.getUniqueId());
+            player.sendMessage(DisLink.PREFIX + ChatColor.RED + target.getName() + " を認証不要リストから削除しました。");
+        } else {
+            plugin.addBypassedPlayer(target.getUniqueId());
+            player.sendMessage(DisLink.PREFIX + ChatColor.GREEN + target.getName() + " を認証不要リストに追加しました。");
+        }
+
+        player.openInventory(getBypassPlayerGUI(player, 1)); // 更新
+    }
+
+    // 認証済みプレイヤークリック処理
+    public static void handleReauthPlayerClick(InventoryClickEvent event, Player player) {
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() != Material.PLAYER_HEAD) return;
+
+        String playerName = ChatColor.stripColor(clicked.getItemMeta().getDisplayName());
+        OfflinePlayer target = Bukkit.getOfflinePlayer(playerName);
+
+        plugin.removeAuthenticatedUser(target.getUniqueId());
+        player.sendMessage(DisLink.PREFIX + ChatColor.RED + target.getName() + " の認証を解除しました。");
+
+        player.openInventory(getReauthPlayerGUI(player, 1)); // 更新
     }
 }

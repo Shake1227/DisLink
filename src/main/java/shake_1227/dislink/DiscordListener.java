@@ -8,7 +8,6 @@ import org.bukkit.OfflinePlayer;
 
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class DiscordListener extends ListenerAdapter {
 
@@ -73,20 +72,50 @@ public class DiscordListener extends ListenerAdapter {
         }
     }
 
+    /**
+     * プレイヤーを認証する
+     */
     private void authenticateUser(UUID matchedUUID, MessageReceivedEvent event) {
         // オフラインプレイヤーを取得
         OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(matchedUUID);
+        String discordId = event.getAuthor().getId();
 
+        // user.yml を参照して Discord ID がすでに別の UUID に紐付けられているかチェック
+        for (String uuidString : plugin.getUsersConfig().getConfigurationSection("authenticated").getKeys(false)) {
+            String existingDiscordId = plugin.getUsersConfig().getString("authenticated." + uuidString);
+
+            // 同じ Discord ID が別の UUID に紐付けられている場合
+            if (existingDiscordId != null && existingDiscordId.equals(discordId) && !uuidString.equals(matchedUUID.toString())) {
+                String errorMessage = plugin.getPluginConfig().getString(
+                        "messages.discord-id-already-linked",
+                        "&cこのDiscordアカウントはすでに別のMinecraftアカウントと紐付けられています！"
+                );
+                errorMessage = ChatColor.translateAlternateColorCodes('&', errorMessage);
+                event.getChannel().sendMessage(errorMessage).queue();
+
+                // ログ出力
+                plugin.getLogger().warning("Discord ID " + discordId + " is already linked to UUID " + uuidString);
+                return; // 認証を中止
+            }
+        }
+
+        // UUIDが正しい場合
         if (offlinePlayer != null && offlinePlayer.hasPlayedBefore()) {
             // 認証成功処理
-            plugin.getAuthenticatedPlayers().put(matchedUUID, true); // 認証済みユーザーとして登録
+            plugin.getAuthenticatedPlayers().put(matchedUUID, discordId); // 認証済みユーザーとして登録
             synchronized (plugin.getPendingCodes()) { // スレッドセーフに削除
                 plugin.getPendingCodes().remove(matchedUUID);
             }
-            plugin.getDiscordToMinecraftMap().put(event.getAuthor().getId(), matchedUUID); // Discordアカウントと紐付け
+            plugin.getDiscordToMinecraftMap().put(discordId, matchedUUID); // Discordアカウントと紐付け
+
+            // ユーザーデータに保存
+            plugin.saveAuthenticatedUser(matchedUUID, discordId);
 
             // Discordチャンネルに成功メッセージを送信
-            String successMessage = plugin.getPluginConfig().getString("messages.auth-success", "&a認証に成功しました！プレイヤー {player} を許可しました！");
+            String successMessage = plugin.getPluginConfig().getString(
+                    "messages.auth-success",
+                    "&a認証に成功しました！プレイヤー {player} を許可しました！"
+            );
             successMessage = ChatColor.translateAlternateColorCodes('&', successMessage);
             successMessage = successMessage.replace("{player}", offlinePlayer.getName() != null ? offlinePlayer.getName() : "Unknown");
             event.getChannel().sendMessage(successMessage).queue();
@@ -100,6 +129,9 @@ public class DiscordListener extends ListenerAdapter {
         }
     }
 
+    /**
+     * 認証失敗時の処理
+     */
     private void handleAuthFailure(MessageReceivedEvent event, String message) {
         String failureMessage = plugin.getPluginConfig().getString("messages.auth-failure", "&c認証コードが間違っています！");
         plugin.getLogger().info("No matching code found for message: '" + message + "'");
@@ -110,6 +142,9 @@ public class DiscordListener extends ListenerAdapter {
         plugin.getLogger().info("Authentication failed. Player was not authenticated.");
     }
 
+    /**
+     * 再認証処理
+     */
     private void handleReauth(MessageReceivedEvent event) {
         String discordId = event.getAuthor().getId();
         plugin.getLogger().info("Reauth request received from Discord ID: " + discordId);
@@ -126,6 +161,7 @@ public class DiscordListener extends ListenerAdapter {
         // 紐付け解除処理
         UUID uuid = plugin.getDiscordToMinecraftMap().remove(discordId);
         plugin.getAuthenticatedPlayers().remove(uuid); // 認証済みリストから削除
+        plugin.removeAuthenticatedUser(uuid); // users.yml から削除
 
         // Discordチャンネルに成功メッセージを送信
         String reauthSuccessMessage = plugin.getPluginConfig().getString("messages.reauth-success", "&a再認証が完了しました！");

@@ -2,15 +2,17 @@
 discord:
   bot-token: "your-bot-token-here"      # Discord Botのトークン
   auth-channel-id: "your-channel-id-here"  # 認証コードを送信するチャンネルID
+  guild-id: "YOUR_GUILD_ID" #DiscordのサーバーID
 
 # メッセージの設定 (カラーコード対応)
 messages:
   kick-message: "&cサーバーに参加するには認証が必要です！\n&6認証コード: &b{code}\n&7Discord チャンネルでコードを送信してください！"
-  auth-success: "&a認証に成功しました！プレイヤー {player} を許可しました！"
-  auth-failure: "&c認証コードが間違っています！"
-  reauth-success: "&a再認証が完了しました！"
-  reauth-failure: "&c再認証に失敗しました。アカウントが見つかりません。"
+  auth-success: "認証に成功しました！プレイヤー {player} を許可しました！"
+  auth-failure: "認証コードが間違っています！"
+  reauth-success: "再認証が完了しました！"
+  reauth-failure: "再認証に失敗しました。アカウントが見つかりません。"
+  discord-id-already-linked: "このDiscordアカウントはすでに別のMinecraftアカウントと紐付けられています！"
 
 # アイテム関連
 item-enable: true    # trueの場合、GUIアイテムが付与されます
-resourcepack-url: "https://example.com/your-resourcepack.zip" # リソースパックのURL
+resourcepack-url: "https://download.mc-packs.net/pack/2497fb63bc6cb315641067eee52d098b09dd01c1.zip" # リソースパックのURL
